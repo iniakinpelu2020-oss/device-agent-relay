@@ -19,13 +19,14 @@ def ask_gemini(prompt):
     }
     try:
         res = requests.post(GEMINI_URL, json=payload, timeout=15)
+        print(f"Gemini HTTP Status: {res.status_code}")
         if res.status_code == 200:
             data = res.json()
             return data["candidates"][0]["content"]["parts"][0]["text"].strip()
         else:
-            print(f"Gemini API Error: {res.status_code} - {res.text}")
+            print(f"Gemini Error Body: {res.text}")
     except Exception as e:
-        print(f"Gemini API Exception: {e}")
+        print(f"Gemini Exception: {e}")
     return "Sorry, I ran into an issue processing that request."
 
 def send_telegram_message(chat_id, text):
@@ -33,11 +34,12 @@ def send_telegram_message(chat_id, text):
         "chat_id": chat_id,
         "text": text
     }
-    requests.post(f"{TELEGRAM_API_URL}/sendMessage", json=payload)
+    res = requests.post(f"{TELEGRAM_API_URL}/sendMessage", json=payload)
+    print(f"Telegram sendMessage Status: {res.status_code}")
 
 def start_polling():
     offset = None
-    print("Bot is live and polling Telegram updates...")
+    print(">>> BOT IS LIVE AND POLLING TELEGRAM NOW <<<", flush=True)
     while True:
         try:
             url = f"{TELEGRAM_API_URL}/getUpdates?timeout=30"
@@ -53,11 +55,14 @@ def start_polling():
                     user_text = message.get("text")
 
                     if chat_id and user_text:
-                        print(f"Received message: {user_text}")
+                        print(f"Received message from {chat_id}: {user_text}", flush=True)
                         reply = ask_gemini(user_text)
+                        print(f"Sending reply: {reply}", flush=True)
                         send_telegram_message(chat_id, reply)
+            else:
+                print(f"Telegram getUpdates not OK: {res}", flush=True)
         except Exception as e:
-            print(f"Polling error: {e}")
+            print(f"Polling Exception: {e}", flush=True)
             time.sleep(3)
 
 if __name__ == "__main__":
